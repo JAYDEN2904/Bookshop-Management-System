@@ -1,24 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Search, Download } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
-import { sales } from '../services/sales';
+import { useSales } from '../contexts/SalesContext';
+import { sales } from '../services/api';
 
 interface Sale {
-  id: string;
-  studentName: string;
-  studentClass: string;
+  _id: string;
+  student: {
+    _id: string;
+    name: string;
+    class_level: string;
+  };
   items: {
-    bookId: string;
-    title: string;
-    price: number;
+    book: {
+      _id: string;
+      title: string;
+      price: number;
+    };
     quantity: number;
+    price_at_sale: number;
   }[];
-  total: number;
-  date: string;
+  total_amount: number;
+  createdAt: string;
 }
 
 function Reports() {
   const { settings } = useSettings();
+  const { refreshSales } = useSales();
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,6 +42,7 @@ function Reports() {
       setLoading(true);
       const response = await sales.getReport(startDate, endDate);
       setSalesData(response);
+      await refreshSales(); // Refresh global sales data after loading report data
     } catch (error) {
       console.error('Error loading sales:', error);
     } finally {
@@ -48,22 +57,22 @@ function Reports() {
 
   // Filter sales based on search term
   const filteredSales = salesData.filter(sale => {
-    const matchesSearch = sale.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       sale.studentClass.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       sale.items.some(item => item.title.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesSearch = sale.student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       sale.student.class_level.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       sale.items.some(item => item.book.title.toLowerCase().includes(searchTerm.toLowerCase()));
 
     return matchesSearch;
   });
 
   // Calculate summary statistics
   const summary = {
-    totalSales: filteredSales.reduce((sum, sale) => sum + sale.total, 0),
+    totalSales: filteredSales.reduce((sum, sale) => sum + sale.total_amount, 0),
     totalTransactions: filteredSales.length,
     totalBooks: filteredSales.reduce((sum, sale) => 
       sum + sale.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0
     ),
     averageTransactionValue: filteredSales.length > 0 
-      ? filteredSales.reduce((sum, sale) => sum + sale.total, 0) / filteredSales.length 
+      ? filteredSales.reduce((sum, sale) => sum + sale.total_amount, 0) / filteredSales.length 
       : 0
   };
 
@@ -72,12 +81,12 @@ function Reports() {
       ['Date', 'Student Name', 'Class', 'Books', 'Quantity', 'Total Amount'],
       ...filteredSales.flatMap(sale => 
         sale.items.map(item => [
-          new Date(sale.date).toLocaleDateString(),
-          sale.studentName,
-          sale.studentClass,
-          item.title,
+          new Date(sale.createdAt).toLocaleDateString(),
+          sale.student.name,
+          sale.student.class_level,
+          item.book.title,
           item.quantity.toString(),
-          formatCurrency(sale.total)
+          formatCurrency(sale.total_amount)
         ])
       )
     ].map(row => row.join(',')).join('\n');
@@ -181,27 +190,27 @@ function Reports() {
                 </thead>
                 <tbody>
                   {filteredSales.map((sale) => (
-                    <tr key={sale.id} className="border-b border-gray-100 dark:border-gray-700">
+                    <tr key={sale._id} className="border-b border-gray-100 dark:border-gray-700">
                       <td className="py-4 text-gray-500 dark:text-gray-400">
-                        {new Date(sale.date).toLocaleDateString()}
+                        {new Date(sale.createdAt).toLocaleDateString()}
                       </td>
                       <td className="py-4">
                         <span className="font-medium text-gray-900 dark:text-white">
-                          {sale.studentName}
+                          {sale.student.name}
                         </span>
                       </td>
                       <td className="py-4 text-gray-600 dark:text-gray-300">
-                        {sale.studentClass}
+                        {sale.student.class_level}
                       </td>
                       <td className="py-4 text-gray-600 dark:text-gray-300">
                         {sale.items.map(item => (
-                          <div key={item.bookId}>
-                            {item.title} (×{item.quantity})
+                          <div key={item.book._id}>
+                            {item.book.title} (×{item.quantity})
                           </div>
                         ))}
                       </td>
                       <td className="py-4 text-gray-900 dark:text-white">
-                        {formatCurrency(sale.total)}
+                        {formatCurrency(sale.total_amount)}
                       </td>
                     </tr>
                   ))}

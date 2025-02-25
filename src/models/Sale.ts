@@ -27,7 +27,17 @@ const saleSchema = new mongoose.Schema({
   total_amount: {
     type: Number,
     required: true,
-  },
-}, { timestamps: true });
+  }
+}, {
+  // Configure timestamps to use GMT
+  timestamps: {
+    currentTime: () => {
+      // Create a date object in GMT
+      const now = new Date();
+      const gmtDate = new Date(now.toLocaleString('en-US', { timeZone: 'GMT' }));
+      return gmtDate;
+    }
+  }
+});
 
-export default mongoose.model('Sale', saleSchema); 
+export default mongoose.model('Sale', saleSchema);

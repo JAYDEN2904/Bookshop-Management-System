@@ -21,6 +21,17 @@ api.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
+// First add the CreateSaleData interface at the top of the file
+interface CreateSaleData {
+  student: string;  // MongoDB ObjectId
+  items: Array<{
+    book: string;   // MongoDB ObjectId
+    quantity: number;
+    price_at_sale: number;
+  }>;
+  total_amount: number;
+}
+
 // Auth API
 export const auth = {
   login: async (name: string, password: string) => {
@@ -56,6 +67,9 @@ export const books = {
   getAll: async () => {
     try {
       const response = await api.get('/books');
+      if (!response.data) {
+        throw new Error('No data returned from books API');
+      }
       return response.data;
     } catch (error) {
       console.error('Error fetching books:', error);
@@ -71,7 +85,21 @@ export const books = {
     stock: number;
   }) => {
     try {
+      // Validate data before sending
+      if (!bookData.title || !bookData.subject || !bookData.class_level) {
+        throw new Error('Missing required fields');
+      }
+      if (bookData.price <= 0) {
+        throw new Error('Price must be greater than 0');
+      }
+      if (bookData.stock < 0) {
+        throw new Error('Stock cannot be negative');
+      }
+
       const response = await api.post('/books', bookData);
+      if (!response.data) {
+        throw new Error('No data returned from book creation');
+      }
       return response.data;
     } catch (error) {
       console.error('Error creating book:', error);
@@ -81,7 +109,13 @@ export const books = {
 
   updateStock: async (id: string, stock: number) => {
     try {
+      if (stock < 0) {
+        throw new Error('Stock cannot be negative');
+      }
       const response = await api.patch(`/books/${id}/stock`, { stock });
+      if (!response.data) {
+        throw new Error('No data returned from stock update');
+      }
       return response.data;
     } catch (error) {
       console.error('Error updating stock:', error);
@@ -91,7 +125,13 @@ export const books = {
 
   updatePrice: async (id: string, price: number) => {
     try {
+      if (price <= 0) {
+        throw new Error('Price must be greater than 0');
+      }
       const response = await api.patch(`/books/${id}/price`, { price });
+      if (!response.data) {
+        throw new Error('No data returned from price update');
+      }
       return response.data;
     } catch (error) {
       console.error('Error updating price:', error);
@@ -102,6 +142,9 @@ export const books = {
   deleteBook: async (id: string) => {
     try {
       const response = await api.delete(`/books/${id}`);
+      if (!response.data) {
+        throw new Error('No data returned from book deletion');
+      }
       return response.data;
     } catch (error) {
       console.error('Error deleting book:', error);
@@ -112,9 +155,21 @@ export const books = {
 
 // Sales API
 export const sales = {
-  create: async (saleData: any) => {
-    const response = await api.post('/sales', saleData);
-    return response.data;
+  create: async (saleData: CreateSaleData) => {
+    try {
+      const response = await api.post('/sales', saleData);
+      if (!response.data) {
+        throw new Error('No data returned from sale creation');
+      }
+      return response.data;
+    } catch (error: any) {
+      console.error('Sale creation error:', {
+        data: error.response?.data,
+        status: error.response?.status,
+        message: error.message
+      });
+      throw error;
+    }
   },
 
   getReport: async (startDate?: string, endDate?: string) => {
@@ -134,7 +189,7 @@ export const students = {
     return response.data;
   },
 
-  create: async (studentData: any) => {
+  create: async (studentData: { name: string; class_level: string }) => {
     const response = await api.post('/students', studentData);
     return response.data;
   }

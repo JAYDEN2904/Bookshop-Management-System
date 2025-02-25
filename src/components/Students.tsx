@@ -1,20 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Filter } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
-
-interface Sale {
-  id: string;
-  studentName: string;
-  studentClass: string;
-  items: {
-    bookId: string;
-    title: string;
-    price: number;
-    quantity: number;
-  }[];
-  total: number;
-  date: string;
-}
+import { useSales } from '../contexts/SalesContext';
 
 interface StudentPurchase {
   name: string;
@@ -27,31 +14,29 @@ interface StudentPurchase {
 
 function Students() {
   const { settings } = useSettings();
+  const { recentSales } = useSales();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterClass, setFilterClass] = useState('all');
 
-  // Get all sales from localStorage
-  const sales: Sale[] = JSON.parse(localStorage.getItem('bookshopSales') || '[]');
-
   // Process sales data to get student purchase history
   const studentPurchases: StudentPurchase[] = Object.values(
-    sales.reduce((acc: { [key: string]: StudentPurchase }, sale) => {
-      const key = `${sale.studentName}-${sale.studentClass}`;
+    recentSales.reduce((acc: { [key: string]: StudentPurchase }, sale) => {
+      const key = `${sale.student.name}-${sale.student.class_level}`;
       if (!acc[key]) {
         acc[key] = {
-          name: sale.studentName,
-          class: sale.studentClass,
+          name: sale.student.name,
+          class: sale.student.class_level,
           totalSpent: 0,
           purchaseCount: 0,
-          lastPurchase: sale.date,
+          lastPurchase: sale.createdAt,
           bookCount: 0
         };
       }
-      acc[key].totalSpent += sale.total;
+      acc[key].totalSpent += sale.total_amount;
       acc[key].purchaseCount += 1;
       acc[key].bookCount += sale.items.reduce((sum, item) => sum + item.quantity, 0);
-      if (new Date(sale.date) > new Date(acc[key].lastPurchase)) {
-        acc[key].lastPurchase = sale.date;
+      if (new Date(sale.createdAt) > new Date(acc[key].lastPurchase)) {
+        acc[key].lastPurchase = sale.createdAt;
       }
       return acc;
     }, {})
@@ -79,6 +64,24 @@ function Students() {
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm">
           <div className="p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <select
+                    className="pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    value={filterClass}
+                    onChange={(e) => setFilterClass(e.target.value)}
+                  >
+                    <option value="all">All Classes</option>
+                    <option value="Basic 1">Basic 1</option>
+                    <option value="Basic 2">Basic 2</option>
+                    <option value="Basic 3">Basic 3</option>
+                    <option value="Basic 4">Basic 4</option>
+                    <option value="Basic 5">Basic 5</option>
+                    <option value="Basic 6">Basic 6</option>
+                  </select>
+                </div>
+              </div>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                 <input
@@ -89,19 +92,6 @@ function Students() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <div className="flex items-center space-x-4">
-                <Filter size={20} className="text-gray-400" />
-                <select
-                  className="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-2"
-                  value={filterClass}
-                  onChange={(e) => setFilterClass(e.target.value)}
-                >
-                  <option value="all">All Classes</option>
-                  {['Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6'].map(className => (
-                    <option key={className} value={className}>{className}</option>
-                  ))}
-                </select>
-              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -110,10 +100,10 @@ function Students() {
                   <tr className="text-left border-b border-gray-200 dark:border-gray-700">
                     <th className="pb-3 text-gray-500 dark:text-gray-400">Student Name</th>
                     <th className="pb-3 text-gray-500 dark:text-gray-400">Class</th>
-                    <th className="pb-3 text-gray-500 dark:text-gray-400">Total Amount Paid</th>
+                    <th className="pb-3 text-gray-500 dark:text-gray-400">Total Spent</th>
                     <th className="pb-3 text-gray-500 dark:text-gray-400">Books Purchased</th>
                     <th className="pb-3 text-gray-500 dark:text-gray-400">Purchase Count</th>
-                    <th className="pb-3 text-gray-500 dark:text-gray-400">Date Purchased</th>
+                    <th className="pb-3 text-gray-500 dark:text-gray-400">Last Purchase</th>
                   </tr>
                 </thead>
                 <tbody>

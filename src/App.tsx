@@ -8,8 +8,8 @@ import Students from './components/Students';
 import Settings from './components/Settings';
 import Suppliers from './components/Suppliers';
 import AuthLayout from './components/auth/AuthLayout';
-import MainLayout from './components/MainLayout';
 import { SettingsProvider } from './contexts/SettingsContext';
+import { SalesProvider } from './contexts/SalesContext';
 import { auth } from './services/api';
 
 function App() {
@@ -71,20 +71,22 @@ function App() {
 
   return (
     <SettingsProvider>
-      <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-        <Sidebar 
-          activeSection={activeSection} 
-          onSectionChange={setActiveSection}
-          isDarkMode={isDarkMode}
-          onDarkModeChange={setIsDarkMode}
-          onLogout={handleLogout}
-        />
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 flex">
-            {renderActiveSection()}
-          </div>
-        </main>
-      </div>
+      <SalesProvider>
+        <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+          <Sidebar 
+            activeSection={activeSection} 
+            onSectionChange={setActiveSection}
+            isDarkMode={isDarkMode}
+            onDarkModeChange={setIsDarkMode}
+            onLogout={handleLogout}
+          />
+          <main className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex">
+              {renderActiveSection()}
+            </div>
+          </main>
+        </div>
+      </SalesProvider>
     </SettingsProvider>
   );
 }

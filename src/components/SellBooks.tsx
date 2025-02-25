@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ShoppingCart, Receipt, Plus, Minus } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
+import { useSales } from '../contexts/SalesContext';
 import { books, sales, students } from '../services/api';
 
 interface Book {
-  id: string;
+  _id: string;
   title: string;
   subject: string;
   class: string;
@@ -39,8 +40,19 @@ interface Sale {
   createdAt: string;
 }
 
+interface CreateSaleData {
+  student: string;
+  items: Array<{
+    book: string;
+    quantity: number;
+    price_at_sale: number;
+  }>;
+  total_amount: number;
+}
+
 function SellBooks() {
   const { settings } = useSettings();
+  const { refreshSales } = useSales();
   const [studentName, setStudentName] = useState('');
   const [studentClass, setStudentClass] = useState('Basic 1');
   const [selectedBooks, setSelectedBooks] = useState<SaleItem[]>([]);
@@ -68,16 +80,16 @@ function SellBooks() {
   );
 
   const addToCart = (book: Book) => {
-    const existingItem = selectedBooks.find(item => item.bookId === book.id);
+    const existingItem = selectedBooks.find(item => item.bookId === book._id);
     if (existingItem) {
       setSelectedBooks(selectedBooks.map(item =>
-        item.bookId === book.id
+        item.bookId === book._id
           ? { ...item, quantity: item.quantity + 1 }
           : item
       ));
     } else {
       setSelectedBooks([...selectedBooks, {
-        bookId: book.id,
+        bookId: book._id,
         title: book.title,
         price: book.price,
         quantity: 1
@@ -104,22 +116,64 @@ function SellBooks() {
   };
 
   const handleCompleteSale = async () => {
+    if (!studentName || selectedBooks.length === 0) {
+      return;
+    }
+
     try {
+      // Check authentication
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Not authenticated - please log in');
+      }
+
+      // Check book stock before proceeding
+      const stockErrors = [];
+      for (const item of selectedBooks) {
+        const book = booksList.find(b => b._id === item.bookId);
+        if (!book) {
+          stockErrors.push(`Book ${item.title} not found`);
+        } else if (book.stock < item.quantity) {
+          stockErrors.push(`Insufficient stock for ${item.title}: requested ${item.quantity}, available ${book.stock}`);
+        }
+      }
+
+      if (stockErrors.length > 0) {
+        throw new Error('Stock validation failed:\n' + stockErrors.join('\n'));
+      }
+
+      // Step 1: Create student first
       const studentResponse = await students.create({
         name: studentName,
         class_level: studentClass
       });
 
-      const saleData = {
+      if (!studentResponse?._id) {
+        throw new Error('Failed to create student - no ID returned');
+      }
+
+      // Step 2: Prepare sale data exactly matching MongoDB schema
+      const saleData: CreateSaleData = {
         student: studentResponse._id,
-        items: selectedBooks.map(book => ({
-          book: book.bookId,
-          quantity: book.quantity,
-          price_at_sale: book.price
-        }))
+        items: selectedBooks.map(item => ({
+          book: item.bookId,         // This should be the MongoDB ObjectId
+          quantity: item.quantity,
+          price_at_sale: Number(item.price)
+        })),
+        total_amount: Number(calculateTotal())
       };
-      
+
+      // Debug log
+      console.log('Submitting sale:', JSON.stringify(saleData, null, 2));
+
+      // Step 3: Create the sale
       const result = await sales.create(saleData);
+
+      if (!result) {
+        throw new Error('No result returned from sale creation');
+      }
+
+      // Step 4: Update UI with sale result
       setCurrentSale({
         _id: result._id,
         student: {
@@ -129,20 +183,45 @@ function SellBooks() {
         },
         items: result.items.map(item => ({
           book: {
-            _id: item.book._id,
-            title: item.book.title,
+            _id: item.book._id || item.book,
+            title: item.book.title || selectedBooks.find(b => b.bookId === item.book)?.title || '',
             price: item.price_at_sale
           },
           quantity: item.quantity,
           price_at_sale: item.price_at_sale
         })),
         total_amount: result.total_amount,
-        createdAt: result.createdAt
+        createdAt: result.createdAt || new Date().toISOString()
       });
+
+      // Step 5: Reset form and show receipt
       setShowReceipt(true);
-      await loadBooks();
-    } catch (error) {
-      console.error('Error completing sale:', error);
+      setSelectedBooks([]);
+      setStudentName('');
+      await loadBooks(); // Refresh book list to update stock
+      await refreshSales(); // Refresh sales data globally
+
+    } catch (error: any) {
+      console.error('Complete sale error:', {
+        error: error.response?.data || error,
+        message: error.message,
+        stack: error.stack,
+        status: error.response?.status
+      });
+      
+      let errorMessage = 'Failed to complete sale: ';
+      
+      if (error.response?.data?.message) {
+        errorMessage += error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage += error.response.data.error;
+      } else if (error.message) {
+        errorMessage += error.message;
+      } else {
+        errorMessage += 'Unknown error occurred';
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -156,7 +235,7 @@ function SellBooks() {
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md">
         <div className="text-center mb-6">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-            {settings.storeName}
+            {settings.store_name}
           </h2>
           <p className="text-gray-600 dark:text-gray-400">Sales Receipt</p>
         </div>
@@ -229,7 +308,7 @@ function SellBooks() {
 
                 <div className="space-y-4">
                   {filteredBooks.map(book => (
-                    <div key={book.id} className="flex items-center justify-between p-4 border border-gray-100 dark:border-gray-700 rounded-lg">
+                    <div key={book._id} className="flex items-center justify-between p-4 border border-gray-100 dark:border-gray-700 rounded-lg">
                       <div>
                         <h3 className="font-medium text-gray-900 dark:text-white">{book.title}</h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400">

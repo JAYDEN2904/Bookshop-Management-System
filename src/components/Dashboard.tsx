@@ -9,7 +9,8 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
-import { books, sales } from '../services/api';
+import { useSales } from '../contexts/SalesContext';
+import { books } from '../services/api';
 
 interface StatCardProps {
   title: string;
@@ -38,28 +39,9 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, trend }) => (
   </div>
 );
 
-interface Sale {
-  id: string;
-  studentName: string;
-  studentClass: string;
-  items: {
-    bookId: string;
-    title: string;
-    price: number;
-    quantity: number;
-  }[];
-  total: number;
-  date: string;
-}
-
 const RecentTransactions = () => {
   const { settings } = useSettings();
-  const sales: Sale[] = JSON.parse(localStorage.getItem('bookshopSales') || '[]');
-  
-  // Sort sales by date (most recent first) and take the last 5
-  const recentSales = [...sales]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5);
+  const { recentSales } = useSales();
 
   const formatCurrency = (amount: number) => {
     const symbol = settings.currency === 'GHS' ? '₵' : settings.currency === 'USD' ? '$' : '€';
@@ -82,17 +64,17 @@ const RecentTransactions = () => {
           </thead>
           <tbody className="text-sm">
             {recentSales.map((sale) => (
-              <tr key={sale.id} className="border-t border-gray-100 dark:border-gray-700">
-                <td className="py-3 text-gray-900 dark:text-white">{sale.studentName}</td>
-                <td className="py-3 text-gray-600 dark:text-gray-300">{sale.studentClass}</td>
+              <tr key={sale._id} className="border-t border-gray-100 dark:border-gray-700">
+                <td className="py-3 text-gray-900 dark:text-white">{sale.student.name}</td>
+                <td className="py-3 text-gray-600 dark:text-gray-300">{sale.student.class_level}</td>
                 <td className="py-3 text-gray-600 dark:text-gray-300">
-                  {sale.items.map(item => item.title).join(', ')}
+                  {sale.items.map(item => item.book.title).join(', ')}
                 </td>
                 <td className="py-3 text-gray-900 dark:text-white">
-                  {formatCurrency(sale.total)}
+                  {formatCurrency(sale.total_amount)}
                 </td>
                 <td className="py-3 text-gray-500 dark:text-gray-400">
-                  {new Date(sale.date).toLocaleDateString()}
+                  {new Date(sale.createdAt).toLocaleDateString()}
                 </td>
               </tr>
             ))}
@@ -111,15 +93,14 @@ const RecentTransactions = () => {
 };
 
 interface DashboardStats {
-  todaySales: number;
   totalBooksInStock: number;
   lowStockBooks: any[];
 }
 
 const Dashboard: React.FC = () => {
   const { settings } = useSettings();
+  const { todaySales, totalSales } = useSales();
   const [stats, setStats] = useState<DashboardStats>({
-    todaySales: 0,
     totalBooksInStock: 0,
     lowStockBooks: []
   });
@@ -132,19 +113,13 @@ const Dashboard: React.FC = () => {
   const loadDashboardData = async () => {
     try {
       setIsLoading(true);
-      const today = new Date().toISOString().split('T')[0];
       
-      // Get sales data
-      const salesData = await sales.getReport(today, today);
-      const todaySales = salesData.reduce((sum: number, sale: any) => sum + sale.total_amount, 0);
-
       // Get books data
       const booksData = await books.getAll();
       const totalBooksInStock = booksData.reduce((sum: number, book: any) => sum + book.stock, 0);
       const lowStockBooks = booksData.filter((book: any) => book.stock < 10);
 
       setStats({
-        todaySales,
         totalBooksInStock,
         lowStockBooks
       });
@@ -169,17 +144,12 @@ const Dashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard Overview</h1>
-          <div className="flex space-x-4">
-            <button className="px-4 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-white border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-              Generate Report
-            </button>
-          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <StatCard
             title="Total Sales Today"
-            value={formatCurrency(stats.todaySales)}
+            value={formatCurrency(todaySales)}
             icon={<DollarSign size={24} className="text-blue-600" />}
           />
           <StatCard
@@ -189,7 +159,7 @@ const Dashboard: React.FC = () => {
           />
           <StatCard
             title="Total Sales"
-            value={formatCurrency(stats.todaySales)}
+            value={formatCurrency(totalSales)}
             icon={<Users size={24} className="text-blue-600" />}
           />
         </div>
@@ -203,7 +173,7 @@ const Dashboard: React.FC = () => {
             <div className="space-y-4">
               {stats.lowStockBooks.map((book) => (
                 <div
-                  key={book.id}
+                  key={book._id}
                   className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 rounded-lg"
                 >
                   <div className="flex items-center space-x-3">
