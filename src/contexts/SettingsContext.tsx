@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { settings as settingsApi } from '../services/api';
 
 interface SettingsState {
   store_name: string;
@@ -8,7 +9,7 @@ interface SettingsState {
 
 interface SettingsContextType {
   settings: SettingsState;
-  updateSettings: (newSettings: SettingsState) => void;
+  updateSettings: (newSettings: SettingsState) => Promise<void>;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -27,7 +28,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const loadSettings = async () => {
     try {
       const response = await settingsApi.get();
-      setSettings(response);
+      if (response) {
+        setSettings(response);
+      }
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -36,9 +39,12 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const updateSettings = async (newSettings: SettingsState) => {
     try {
       const response = await settingsApi.update(newSettings);
-      setSettings(response);
+      if (response) {
+        setSettings(response);
+      }
     } catch (error) {
       console.error('Error updating settings:', error);
+      throw error;
     }
   };
 
