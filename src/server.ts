@@ -23,7 +23,7 @@ connectDB();
 const corsOptions = {
   origin: [
     'http://localhost:5173', // Local development
-    'https://your-vercel-app-url.vercel.app', // Replace with your Vercel domain
+    'https://bookshop-management-system.vercel.app', // Replace with your Vercel domain
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
