@@ -11,8 +11,7 @@ export default defineConfig({
     watch: {
       usePolling: true,
       interval: 1000
-    },
-    port: 3000
+    }
   },
   optimizeDeps: {
     include: ['react', 'react-dom'],
@@ -23,7 +22,6 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: 'dist',
     sourcemap: true,
     target: 'es2020',
     minify: 'esbuild',
