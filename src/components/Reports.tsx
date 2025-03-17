@@ -40,7 +40,7 @@ function Reports() {
   const loadSales = async () => {
     try {
       setLoading(true);
-      const response = await sales.getReport(startDate, endDate);
+      const response = await sales.getReport(startDate, endDate) as Sale[];
       setSalesData(response);
       await refreshSales(); // Refresh global sales data after loading report data
     } catch (error) {

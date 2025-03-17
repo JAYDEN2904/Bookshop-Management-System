@@ -58,16 +58,22 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const loadSales = async () => {
     try {
       // Get all sales
-      const allSalesData = await sales.getReport();
+      const response = await sales.getReport();
+      const allSalesData = response as Sale[];
+
+      if (!Array.isArray(allSalesData)) {
+        console.error('Invalid sales data format');
+        return;
+      }
 
       // Calculate today's sales
       const todayTotal = allSalesData
-        .filter((sale: Sale) => isToday(sale.createdAt))
-        .reduce((sum: number, sale: Sale) => sum + sale.total_amount, 0);
+        .filter(sale => isToday(sale.createdAt))
+        .reduce((sum, sale) => sum + sale.total_amount, 0);
       setTodaySales(todayTotal);
 
       // Calculate total sales
-      const total = allSalesData.reduce((sum: number, sale: Sale) => sum + sale.total_amount, 0);
+      const total = allSalesData.reduce((sum, sale) => sum + sale.total_amount, 0);
       setTotalSales(total);
 
       // Sort by date and take most recent

@@ -13,13 +13,32 @@ const api = axios.create({
 // Add token to requests if it exists
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
-  if (token) {
+  if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 }, (error) => {
   return Promise.reject(error);
 });
+
+// Response interfaces
+interface AuthResponse {
+  token: string;
+  user: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+}
+
+interface BookResponse {
+  _id: string;
+  title: string;
+  subject: string;
+  class_level: string;
+  price: number;
+  stock: number;
+}
 
 // First add the CreateSaleData interface at the top of the file
 interface CreateSaleData {
@@ -34,9 +53,9 @@ interface CreateSaleData {
 
 // Auth API
 export const auth = {
-  login: async (name: string, password: string) => {
+  login: async (name: string, password: string): Promise<AuthResponse> => {
     try {
-      const response = await api.post('/auth/login', { name, password });
+      const response = await api.post<AuthResponse>('/auth/login', { name, password });
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('currentUser', JSON.stringify(response.data.user));
       return response.data;
@@ -46,9 +65,9 @@ export const auth = {
     }
   },
   
-  signup: async (name: string, email: string, password: string) => {
+  signup: async (name: string, email: string, password: string): Promise<AuthResponse> => {
     try {
-      const response = await api.post('/auth/signup', { name, email, password });
+      const response = await api.post<AuthResponse>('/auth/signup', { name, email, password });
       return response.data;
     } catch (error) {
       console.error('Signup error:', error);
@@ -64,9 +83,9 @@ export const auth = {
 
 // Books API
 export const books = {
-  getAll: async () => {
+  getAll: async (): Promise<BookResponse[]> => {
     try {
-      const response = await api.get('/books');
+      const response = await api.get<BookResponse[]>('/books');
       if (!response.data) {
         throw new Error('No data returned from books API');
       }

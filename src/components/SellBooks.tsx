@@ -8,7 +8,7 @@ interface Book {
   _id: string;
   title: string;
   subject: string;
-  class: string;
+  class_level: string;
   price: number;
   stock: number;
 }
@@ -40,6 +40,28 @@ interface Sale {
   createdAt: string;
 }
 
+interface StudentResponse {
+  _id: string;
+  name: string;
+  class_level: string;
+}
+
+interface SaleResponse {
+  _id: string;
+  student: StudentResponse;
+  items: Array<{
+    book: {
+      _id: string;
+      title?: string;
+      price?: number;
+    };
+    quantity: number;
+    price_at_sale: number;
+  }>;
+  total_amount: number;
+  createdAt: string;
+}
+
 interface CreateSaleData {
   student: string;
   items: Array<{
@@ -67,7 +89,7 @@ function SellBooks() {
 
   const loadBooks = async () => {
     try {
-      const data = await books.getAll();
+      const data = await books.getAll() as Book[];
       setBooksList(data);
     } catch (error) {
       console.error('Error loading books:', error);
@@ -146,9 +168,9 @@ function SellBooks() {
       const studentResponse = await students.create({
         name: studentName,
         class_level: studentClass
-      });
+      }) as StudentResponse;
 
-      if (!studentResponse?._id) {
+      if (!studentResponse._id) {
         throw new Error('Failed to create student - no ID returned');
       }
 
@@ -167,7 +189,7 @@ function SellBooks() {
       console.log('Submitting sale:', JSON.stringify(saleData, null, 2));
 
       // Step 3: Create the sale
-      const result = await sales.create(saleData);
+      const result = await sales.create(saleData) as SaleResponse;
 
       if (!result) {
         throw new Error('No result returned from sale creation');
@@ -183,15 +205,15 @@ function SellBooks() {
         },
         items: result.items.map(item => ({
           book: {
-            _id: item.book._id || item.book,
-            title: item.book.title || selectedBooks.find(b => b.bookId === item.book)?.title || '',
+            _id: item.book._id,
+            title: item.book.title || selectedBooks.find(b => b.bookId === item.book._id)?.title || '',
             price: item.price_at_sale
           },
           quantity: item.quantity,
           price_at_sale: item.price_at_sale
         })),
         total_amount: result.total_amount,
-        createdAt: result.createdAt || new Date().toISOString()
+        createdAt: result.createdAt
       });
 
       // Step 5: Reset form and show receipt
@@ -312,7 +334,7 @@ function SellBooks() {
                       <div>
                         <h3 className="font-medium text-gray-900 dark:text-white">{book.title}</h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {book.class} - Stock: {book.stock}
+                          {book.class_level} - Stock: {book.stock}
                         </p>
                       </div>
                       <div className="flex items-center space-x-4">

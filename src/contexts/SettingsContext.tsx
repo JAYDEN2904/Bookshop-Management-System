@@ -27,7 +27,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const loadSettings = async () => {
     try {
-      const response = await settingsApi.get();
+      const response = await settingsApi.get() as SettingsState;
       if (response) {
         setSettings(response);
       }
@@ -38,7 +38,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const updateSettings = async (newSettings: SettingsState) => {
     try {
-      const response = await settingsApi.update(newSettings);
+      const response = await settingsApi.update(newSettings) as SettingsState;
       if (response) {
         setSettings(response);
       }

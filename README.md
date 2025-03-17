@@ -2,7 +2,7 @@
 
 A modern, full-stack web application for managing school bookshop operations. Built with React, TypeScript, and Node.js, this system helps school bookshops manage their inventory, track sales, and maintain student records efficiently.
 
-![Dashboard Overview](docs/images/dashboard.png)
+![Dashboard Overview](docs/dashboard.png)
 
 ## Features
 

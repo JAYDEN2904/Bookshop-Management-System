@@ -97,6 +97,12 @@ interface DashboardStats {
   lowStockBooks: any[];
 }
 
+interface Book {
+  _id: string;
+  title: string;
+  stock: number;
+}
+
 const Dashboard: React.FC = () => {
   const { settings } = useSettings();
   const { todaySales, totalSales } = useSales();
@@ -115,9 +121,9 @@ const Dashboard: React.FC = () => {
       setIsLoading(true);
       
       // Get books data
-      const booksData = await books.getAll();
-      const totalBooksInStock = booksData.reduce((sum: number, book: any) => sum + book.stock, 0);
-      const lowStockBooks = booksData.filter((book: any) => book.stock < 10);
+      const booksData = await books.getAll() as Book[];
+      const totalBooksInStock = booksData.reduce((sum: number, book: Book) => sum + book.stock, 0);
+      const lowStockBooks = booksData.filter((book: Book) => book.stock < 10);
 
       setStats({
         totalBooksInStock,
